@@ -1,0 +1,193 @@
+NAME
+	foil6 - produce Horn clauses from relational data
+
+SYNOPSIS
+	foil6 [ -n ] [ -N ] [ -v verb ] [ -V vars ] [ -s frac ] [ -m maxt ]
+	      [ -d depth ] [ -w weaklits ] [ -a accur ] [ -l alter ]
+	      [ -t chkpt ] [ -f gain ] [ -g max ]
+
+DESCRIPTION
+	foil6 is a program that learns Horn clauses from input comprising
+	examples of one or more relations. More than one relation may be
+	specified in the input file as the target relations that are to
+	be learned by foil6. 
+
+Input to the program consists of three sections:
+
+        * specification of types
+          blank line
+        * extensional definitions of relations
+          blank line                            |  these are
+        * test cases for learned definitions    |  optional
+
+Each discrete type specification consists of the type name followed by a 
+colon, then a series of constants separated by commas and terminated with a 
+period. This may occupy several lines and the same constant can appear in many
+types. The names of types with fixed ordering shall be preceded by a '*' and 
+arranged so that no constant appears before a "smaller" constant. The names
+of types that are explicitly defined to be unordered shall be preceded by
+a '#'. (FOIL will attempt to find an order for the constants in a type whose
+name is preceded by neither '*' nor '#'). A constant is preceded by 
+a '*' if it is to be permitted to appear in the Horn clause definition.
+The missing value constant "?" is special - do not use "?" as the name of
+a user defined constant, and do not enter it as a constant in the type
+specification, as the program does that internally.
+
+Each continuous type specification consists of the type name followed by
+": continuous." on one line. There is no requirement to specify constants
+of this type. Any string that can be converted to a float by C's atof()
+should work when specifying a value in a tuple.
+
+Constants consist of any string of characters with the exception that any
+occurrence of certain delimiter characters (left and right parenthesis, period,
+comma, semicolon) must be prefixed by the escape character '\', except that
+a period may appear unprefixed if immediately followed by a digit. (The
+latter exception has been added to make entry of floating point numbers
+easier - avoid following periods by digits in other circumstances!).
+
+All relations are defined in terms of the set of positive tuples of constants
+for which the relation is true, and optionally the set of negative tuples of
+constants for which it is false. If only positive tuples are given, all other
+constant tuples of the correct types are considered to be negative.
+
+Each relation is defined by a header and one or two sets of constant tuples.
+The header can be specified as follows:
+
+    name(type, type, ... , type) key/key/.../key
+
+All relations other than target relations shall begin with '*' in the header.
+The header consists of relation name, argument types and optional keys.
+The type definition in the header shall be the one specified in the type
+specification. The optional keys limit the ways the relation may be used. 
+Each key consists of a string of characters, one for each type.  
+The character '#' indicates that
+the corresponding argument in a literal must be bound; the character '-'
+indicates that the argument can be bound or unbound.  Each key thus gives
+a permissible way of accessing the relation.  If no keys appear, all possible
+combinations of bound and unbound arguments are allowed.
+
+Following the header line are a series of lines containing constant tuples:
+
+    positive tuple
+    positive tuple
+      . . .
+    ;			| these
+    negative tuple	| are
+    negative tuple	| optional
+      . . .		|
+    .
+
+Each tuple consists of constants separated by commas and must appear on a
+single line.  The character ';' separates positive tuples from negative
+tuples, which are optional.
+
+The optional test relations may be given to test the learned Horn clause 
+definitions.  The additional input consists of
+
+        a blank line (indicating start of test relation specification)
+        relation name
+        test tuples
+        .
+        relation name
+        test tuples
+        .
+          and so on
+
+Each test tuple consists of a constant tuple followed by ": +" if it is 
+positive tuple of the learned Horn clauses definition. Otherwise, test 
+tuple shall be succeeded by ": -". Each test tuple that is handled
+incorrectly by the definition is printed, along with the number of such
+errors for that relation.  [**NB**: the definition interpreter is by default
+simple; right-hand sides of the clauses are checked with reference to the
+given tuples, not to the definitions of the relations that may have been
+learned. If the -r option for recursive checking of test cases is used, then
+those recursive occurrences of relations which satisfy the tuple check will
+be further checked by testing against the definition. For this reason, the
+clause order in the final definition will, (if necessary), be altered from the
+order in which the clauses were found, to put recursive clauses after
+non-recursive ones].
+
+	Options and their meanings are:
+
+        -n      Negative literals are not considered.  This may be useful in
+                domains where negated literals wouldn't make sense, or if
+                learned definitions must be Horn clauses.
+
+	-N	This is similar, but permits negated equality literals
+		A<>B and A<>constant.
+
+        -vverb	Set verbosity level [0, 1, 2, 3, or 4; default 1]
+                The program produces rather voluminous trace output controlled
+                by this variable.  The default value of 1 gives a fair
+                amount of detail; 0 produces very little output; 3 gives
+                a blow-by-blow account of what the system is doing;
+                4 gives details of tuples in training sets etc.
+
+	-Vvars	Set the maximum number of variables that can be used during
+		the search for a definition. [default: 52]
+
+        -sfrac	In some predicates of high arity, the closed world assumption
+                will generate very many negative tuples.  This option causes
+                only a randomly-selected neg% of negative tuples to be used.
+                Note that this option has no effect if negative tuples are
+                given explicitly.
+
+	-mmaxt	Set the maximum number of tuples; the default is 100000.
+		If the default setting results in warnings that literals are
+		being excluded due to the tuple limit, expanding the limit
+		may be useful (but time-consuming).
+
+        -ddepth	Set the maximum variable depth [default 4]. This limits the
+                possible depth of variables in literals.
+
+	-wwklts Set the maximum number of weak (zero-gain) literals that
+		can appear in sequence [default: 4].  A batch of determinate
+		literals counts as one literal in this respect.
+
+        -aaccur	Set the minimum accuracy of any clause [default 80%]
+                FOIL will not accept any clause with an accuracy lower
+                than this.
+
+	-lalter Set the maximum number of alternatives to any literal
+		[default 5]. This limits the amount of backup from any 
+		one point.
+
+        -tchkpt	Set the maximum number of checkpoints at any one time 
+		[default 20].
+
+        -fgain	Any alternative literal must have at least gain%
+                of the best literal gain [default 80%].  
+
+        -gmax	Determinate literals are automatically included, unless
+                there is a literal which has at least max% of the maximum
+                possible gain.  (The maximum possible gain is achieved
+                by a literal that is satisfied by all + tuples, but no
+                - tuples, in the current training set.)  Obviously, if
+                max is zero, no determinate literals are included unless
+                there are no other literals.
+
+	Options are specified in the usual Unix way, e.g.
+
+		foil6 -v0 <infile >outfile
+
+
+SEE ALSO
+
+	Quinlan, J.R. (1990), "Learning Logical Definitions from Relations",
+	Machine Learning 5, 239-266.
+
+	Quinlan, J.R. (1991), "Determinate Literals in Inductive Logic
+	Programming", Proceedings 12th International Joint Conference on
+	Artificial Intelligence, 746-750, Morgan Kaufmann.
+
+        Quinlan, J.R. and Cameron-Jones, R.M. (1993), "FOIL: a midterm report",
+        3-20, Proceedings European Conference on Machine Learning, Springer
+        Verlag.
+
+        Cameron-Jones, R.M. and Quinlan, J.R. (1993), "Avoiding Pitfalls When
+        Learning Recursive Theories", Proceedings IJCAI 93, 1050-1055,
+	Morgan Kaufmann.
+
+        Cameron-Jones, R.M. and Quinlan, J.R., (1993), "First Order Learning,
+        Zeroth Order Data", Sixth Australian Joint Conference on Artificial
+        Intelligence, (forthcoming).
